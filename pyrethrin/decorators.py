@@ -120,15 +120,12 @@ def _check_caller_exhaustiveness(
             return
 
         # Read and analyze the source file
-        from pyrethrin._ast_dump import analyze_file
+        from pyrethrin._ast_dump import dump_raw_ast_json
 
         try:
-            result = analyze_file(filename)
+            json_data = dump_raw_ast_json(filename)
         except Exception:
             return
-
-        # Build JSON and run pyrethrum
-        json_data = result.to_json()
 
         try:
             proc = subprocess.run(

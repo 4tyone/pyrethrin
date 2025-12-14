@@ -1,21 +1,40 @@
 # Pyrethrin
 
-OCaml and Rust-style exhaustive exception handling for Python.
+**Rust-style exhaustive exception handling for Python.**
 
-## Overview
+Pyrethrin brings compile-time error handling guarantees to Python. Declare what exceptions a function can raise, and the static analyzer ensures every caller handles all of them. No more runtime crashes from forgotten exception handlers.
 
-Pyrethrin brings Rust-style exhaustive error handling to Python. Instead of unchecked exceptions that can crash your program at runtime, Pyrethrin ensures every declared exception is handled through static analysis enforced at runtime.
+---
 
-**Key Features:**
-- `@raises` decorator to declare exceptions a function can throw
-- `@returns_option` decorator for functions returning optional values
-- `match()` function for exhaustive error handling (works with both Result and Option)
-- `Result` type (`Ok`/`Err`) for explicit error handling
-- `Option` type (`Some`/`Nothing`) for optional values
-- Runtime enforcement via Pyrethrum static analyzer
-- Full async/await support
+## Table of Contents
 
-**Core Principle:** You MUST use `match()` or native `match-case` to handle Result and Option types. There are no escape hatches like `unwrap()` - this is by design.
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [API Reference](#api-reference)
+- [Option Type](#option-type)
+- [Async Support](#async-support)
+- [Pattern Matching](#pattern-matching-python-310)
+- [Error Codes](#error-codes)
+- [Testing](#testing)
+- [Configuration](#configuration)
+- [License](#license)
+
+---
+
+## Features
+
+- **`@raises` decorator** - Declare exceptions a function can throw
+- **`@returns_option` decorator** - Mark functions returning optional values
+- **`match()` function** - Exhaustive error handling for Result and Option types
+- **`Result` type** - `Ok` and `Err` for explicit success/failure
+- **`Option` type** - `Some` and `Nothing` for optional values
+- **Static analysis** - Catches missing handlers before runtime
+- **Full async/await support** - Works with async functions
+
+**Core Principle:** You must use `match()` or native `match-case` to handle Result and Option types. There are no escape hatches like `unwrap()` - this is by design.
+
+---
 
 ## Installation
 
@@ -23,17 +42,19 @@ Pyrethrin brings Rust-style exhaustive error handling to Python. Instead of unch
 pip install pyrethrin
 ```
 
-Or install from source:
+From source:
 
 ```bash
-git clone https://github.com/4tyone/pyrethrin
+git clone https://github.com/yourusername/pyrethrin
 cd pyrethrin
 pip install -e .
 ```
 
+---
+
 ## Quick Start
 
-### 1. Declare Exceptions with `@raises`
+### 1. Declare Exceptions
 
 ```python
 from pyrethrin import raises, match, Ok, Err
@@ -54,7 +75,7 @@ def get_user(user_id: str) -> User:
     return user
 ```
 
-### 2. Handle All Cases with `match()`
+### 2. Handle All Cases
 
 ```python
 def handle_request(user_id: str) -> Response:
@@ -79,21 +100,124 @@ def handle_request(user_id: str) -> Response:
             return Response(400, {"error": str(e)})
 ```
 
-### 4. What Happens If You Don't Handle?
+### 4. Missing Handlers? Static Analysis Catches It
 
 ```python
-# ERROR! This will raise ExhaustivenessError at runtime
+# ERROR: Result not handled with match
 def bad_handler(user_id: str):
-    result = get_user(user_id)  # Result not handled with match!
-    print(result)
+    result = get_user(user_id)
+    print(result)  # ExhaustivenessError at runtime
 
-# ERROR! Missing handler for InvalidUserId
+# ERROR: Missing handler for InvalidUserId
 match(get_user, user_id)({
     Ok: lambda user: user,
     UserNotFound: lambda e: None,
-    # Missing: InvalidUserId
+    # Missing: InvalidUserId - caught by static analysis
 })
 ```
+
+---
+
+## API Reference
+
+### `@raises(*exceptions)`
+
+Declares which exceptions a function can raise.
+
+```python
+@raises(ValueError, KeyError)
+def risky_function(x: str) -> int:
+    if not x:
+        raise ValueError("empty string")
+    return data[x]  # may raise KeyError
+```
+
+**Behavior:**
+- Returns `Ok(value)` on success
+- Returns `Err(exception)` for declared exceptions
+- Raises `UndeclaredExceptionError` for undeclared exceptions
+
+### `@returns_option`
+
+Marks a function as returning an Option type.
+
+```python
+@returns_option
+def find_item(items: list, key: str) -> Option[Any]:
+    for item in items:
+        if item.key == key:
+            return Some(item)
+    return Nothing()
+```
+
+**Requirements:**
+- Function must return `Some(value)` or `Nothing()`
+- Raises `TypeError` otherwise
+
+### `match(fn, *args, **kwargs)`
+
+Creates a match builder for exhaustive error handling.
+
+```python
+# For @raises functions
+result = match(risky_function, "key")({
+    Ok: lambda value: f"Got {value}",
+    ValueError: lambda e: f"Bad value: {e}",
+    KeyError: lambda e: f"Missing key: {e}",
+})
+
+# For @returns_option functions
+result = match(find_item, items, "key")({
+    Some: lambda item: f"Found {item}",
+    Nothing: lambda: "Not found",
+})
+```
+
+**Raises `ExhaustivenessError` if:**
+- `Ok` handler is missing (for Result types)
+- Any declared exception handler is missing
+- `Some` or `Nothing` handler is missing (for Option types)
+
+### `Ok` and `Err`
+
+Result types for success or failure.
+
+```python
+from pyrethrin import Ok, Err
+
+result: Ok[int] | Err[ValueError] = Ok(42)
+result.value      # 42
+result.is_ok()    # True
+result.is_err()   # False
+
+error = Err(ValueError("oops"))
+error.error       # ValueError("oops")
+error.is_ok()     # False
+error.is_err()    # True
+```
+
+### `Some` and `Nothing`
+
+Option types for optional values.
+
+```python
+from pyrethrin import Some, Nothing
+
+option = Some(42)
+option.value        # 42
+option.is_some()    # True
+option.is_nothing() # False
+
+empty = Nothing()
+empty.is_some()     # False
+empty.is_nothing()  # True
+
+Nothing() == Nothing()  # True (all Nothing instances are equal)
+```
+
+**Note:** There is no `unwrap()` method. You must use pattern matching.
+
+---
 
 ## Option Type
 
@@ -109,135 +233,18 @@ def find_user(user_id: str) -> Option[dict]:
         return Nothing()
     return Some(user)
 
-# MUST handle both cases
+# Must handle both cases
 result = match(find_user, "123")({
     Some: lambda user: f"Found: {user['name']}",
     Nothing: lambda: "User not found",
 })
-
-# Or with native match-case
-result = find_user("123")
-match result:
-    case Some(user):
-        print(f"Found: {user['name']}")
-    case Nothing():
-        print("User not found")
 ```
 
-## API Reference
+---
 
-### `@raises(*exceptions)`
+## Async Support
 
-Decorator that declares which exceptions a function can raise.
-
-```python
-@raises(ValueError, KeyError)
-def risky_function(x: str) -> int:
-    if not x:
-        raise ValueError("empty string")
-    return data[x]  # may raise KeyError
-```
-
-**Behavior:**
-- Returns `Ok(value)` on success
-- Returns `Err(exception)` for declared exceptions
-- Raises `UndeclaredExceptionError` for undeclared exceptions (indicates a bug)
-
-### `@returns_option`
-
-Decorator that marks a function as returning an Option type.
-
-```python
-@returns_option
-def find_item(items: list, key: str) -> Option[Any]:
-    for item in items:
-        if item.key == key:
-            return Some(item)
-    return Nothing()
-```
-
-**Requirements:**
-- Function MUST return `Some(value)` or `Nothing()`
-- Raises `TypeError` if function returns something else
-
-### `match(fn, *args, **kwargs)`
-
-Creates a match builder for exhaustive error handling.
-
-```python
-# For @raises decorated functions
-result = match(risky_function, "key")({
-    Ok: lambda value: f"Got {value}",
-    ValueError: lambda e: f"Bad value: {e}",
-    KeyError: lambda e: f"Missing key: {e}",
-})
-
-# For @returns_option decorated functions
-result = match(find_item, items, "key")({
-    Some: lambda item: f"Found {item}",
-    Nothing: lambda: "Not found",
-})
-```
-
-**Validation (raises `ExhaustivenessError` if):**
-- `Ok` handler is missing (for Result types)
-- Any declared exception handler is missing
-- `Some` or `Nothing` handler is missing (for Option types)
-- Handlers for undeclared exceptions are provided
-
-### `Ok` and `Err` Types
-
-Result types for representing success or failure.
-
-```python
-from pyrethrin import Ok, Err
-
-result: Ok[int] | Err[ValueError] = Ok(42)
-result.value      # 42
-result.is_ok()    # True
-result.is_err()   # False
-
-error_result = Err(ValueError("oops"))
-error_result.error    # ValueError("oops")
-error_result.is_ok()  # False
-error_result.is_err() # True
-```
-
-**Methods:**
-- `is_ok()` - Returns `True` if Ok
-- `is_err()` - Returns `True` if Err
-
-**Note:** There is no `unwrap()` method. You MUST use pattern matching.
-
-### `Some` and `Nothing` Types
-
-Option types for representing optional values.
-
-```python
-from pyrethrin import Some, Nothing
-
-option = Some(42)
-option.value        # 42
-option.is_some()    # True
-option.is_nothing() # False
-
-empty: Nothing[int] = Nothing()
-empty.is_some()     # False
-empty.is_nothing()  # True
-
-# All Nothing instances are equal
-Nothing() == Nothing()  # True
-```
-
-**Methods:**
-- `is_some()` - Returns `True` if Some
-- `is_nothing()` - Returns `True` if Nothing
-
-**Note:** There is no `unwrap()` method. You MUST use pattern matching.
-
-### Async Support
-
-For async functions, use `@async_raises` and `async_match`:
+Use `@async_raises` and `async_match` for async functions:
 
 ```python
 from pyrethrin import async_raises, async_match, Ok
@@ -255,60 +262,11 @@ async def handle_fetch(url: str) -> str:
     })
 ```
 
-## Error Codes
-
-| Code   | Severity | Description |
-|--------|----------|-------------|
-| EXH001 | Error    | Missing handlers for declared exceptions |
-| EXH002 | Warning  | Handlers for undeclared exceptions |
-| EXH003 | Error    | Missing Ok handler |
-| EXH004 | Warning  | Unknown function (no @raises signature) |
-| EXH005 | Error    | Missing Some handler (Option) |
-| EXH006 | Error    | Missing Nothing handler (Option) |
-| EXH007 | Error    | Result not handled with match |
-| EXH008 | Error    | Option not handled with match |
-
-## Exception Types
-
-### `ExhaustivenessError`
-
-Raised when a match statement is not exhaustive.
-
-```python
-from pyrethrin import ExhaustivenessError
-
-try:
-    match(get_user, "123")({
-        Ok: lambda u: u,
-        # Missing exception handlers!
-    })
-except ExhaustivenessError as e:
-    print(e.func_name)   # "get_user"
-    print(e.missing)     # [UserNotFound, InvalidUserId]
-```
-
-### `UndeclaredExceptionError`
-
-Raised when a function raises an exception not in its `@raises` declaration.
-
-```python
-from pyrethrin import UndeclaredExceptionError
-
-@raises(ValueError)
-def buggy():
-    raise KeyError("oops")  # Not declared!
-
-try:
-    buggy()
-except UndeclaredExceptionError as e:
-    print(e.fn)        # "buggy"
-    print(e.got)       # "KeyError"
-    print(e.declared)  # ["ValueError"]
-```
+---
 
 ## Pattern Matching (Python 3.10+)
 
-Pyrethrin works seamlessly with Python's structural pattern matching:
+Pyrethrin works with Python's structural pattern matching:
 
 ```python
 result = get_user("123")
@@ -321,7 +279,64 @@ match result:
         return {"status": "error", "code": 400, "message": str(e)}
 ```
 
-The static analyzer verifies exhaustiveness for native match-case too.
+The static analyzer verifies exhaustiveness for native `match-case` too.
+
+---
+
+## Error Codes
+
+| Code | Severity | Description |
+|------|----------|-------------|
+| EXH001 | Error | Missing handlers for declared exceptions |
+| EXH002 | Warning | Handlers for undeclared exceptions |
+| EXH003 | Error | Missing Ok handler |
+| EXH004 | Warning | Unknown function (no @raises signature) |
+| EXH005 | Error | Missing Some handler |
+| EXH006 | Error | Missing Nothing handler |
+| EXH007 | Error | Result not handled with match |
+| EXH008 | Error | Option not handled with match |
+
+---
+
+## Exception Types
+
+### `ExhaustivenessError`
+
+Raised when a match is not exhaustive.
+
+```python
+from pyrethrin import ExhaustivenessError
+
+try:
+    match(get_user, "123")({
+        Ok: lambda u: u,
+        # Missing exception handlers
+    })
+except ExhaustivenessError as e:
+    print(e.func_name)  # "get_user"
+    print(e.missing)    # [UserNotFound, InvalidUserId]
+```
+
+### `UndeclaredExceptionError`
+
+Raised when a function raises an exception not in its `@raises` declaration.
+
+```python
+from pyrethrin import UndeclaredExceptionError
+
+@raises(ValueError)
+def buggy():
+    raise KeyError("oops")  # Not declared
+
+try:
+    buggy()
+except UndeclaredExceptionError as e:
+    print(e.fn)        # "buggy"
+    print(e.got)       # "KeyError"
+    print(e.declared)  # ["ValueError"]
+```
+
+---
 
 ## Testing
 
@@ -351,27 +366,34 @@ def test_exhaustive_handling():
     assert result == 84
 ```
 
+---
+
 ## Configuration
 
 ### Environment Variables
 
 | Variable | Description |
 |----------|-------------|
-| `PYRETHRIN_DISABLE_STATIC_CHECK` | Set to `1` to disable static analysis (for performance) |
+| `PYRETHRIN_DISABLE_STATIC_CHECK` | Set to `1` to disable static analysis |
+
+---
 
 ## Architecture
 
 Pyrethrin consists of two components:
 
-1. **Python Library** (`pyrethrin`): Runtime decorators, Result/Option types, and AST extraction
-2. **Pyrethrum Analyzer**: OCaml-based static analyzer (bundled as platform-specific binary)
+1. **Python Library** - Runtime decorators, Result/Option types, AST extraction
+2. **Pyrethrum Analyzer** - OCaml static analyzer (bundled as platform-specific binary)
 
 When a decorated function is called:
+
 1. The decorator invokes static analysis on the caller's source file
 2. AST is extracted and converted to JSON
 3. JSON is passed to the Pyrethrum binary
 4. Pyrethrum checks exhaustiveness and returns diagnostics
 5. `ExhaustivenessError` is raised if violations are found
+
+---
 
 ## License
 

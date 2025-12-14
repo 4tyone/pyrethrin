@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import json
 import platform
 import subprocess
 import sys
 from pathlib import Path
 
-from pyrethrin._ast_dump import AnalysisResult, analyze_file
+from pyrethrin._ast_dump import dump_raw_ast
 
 
 def get_pyrethrum_binary() -> Path | None:
@@ -41,14 +42,6 @@ def find_python_files(paths: list[str]) -> list[Path]:
         elif path.is_dir():
             files.extend(path.rglob("*.py"))
     return files
-
-
-def merge_results(results: list[AnalysisResult]) -> AnalysisResult:
-    merged = AnalysisResult()
-    for r in results:
-        merged.signatures.extend(r.signatures)
-        merged.matches.extend(r.matches)
-    return merged
 
 
 def run_pyrethrum(
@@ -90,11 +83,23 @@ def cmd_check(args: argparse.Namespace) -> int:
         print("No Python files found.", file=sys.stderr)
         return 0
 
-    results = []
+    pyrethrum_path = Path(args.pyrethrum) if args.pyrethrum else get_pyrethrum_binary()
+
+    if pyrethrum_path is None and not args.dump_ast:
+        print(
+            "Error: Pyrethrum binary not found. "
+            "Use --dump-ast to see AST output or --pyrethrum to specify path.",
+            file=sys.stderr,
+        )
+        return 1
+
+    max_returncode = 0
+    all_outputs = []
+
     for f in files:
         try:
-            result = analyze_file(f)
-            results.append(result)
+            ast_data = dump_raw_ast(f)
+            json_data = json.dumps(ast_data)
         except SyntaxError as e:
             print(f"Syntax error in {f}: {e}", file=sys.stderr)
             continue
@@ -102,39 +107,24 @@ def cmd_check(args: argparse.Namespace) -> int:
             print(f"Error analyzing {f}: {e}", file=sys.stderr)
             continue
 
-    merged = merge_results(results)
+        if args.dump_ast:
+            print(json_data)
+            continue
 
-    if not merged.signatures and not merged.matches:
-        if args.format == "json":
-            print('{"diagnostics": []}')
-        return 0
-
-    json_data = merged.to_json()
-
-    if args.dump_ast:
-        print(json_data)
-        return 0
-
-    pyrethrum_path = Path(args.pyrethrum) if args.pyrethrum else get_pyrethrum_binary()
-
-    if pyrethrum_path is None:
-        print(
-            "Warning: Pyrethrum binary not found. "
-            "Use --dump-ast to see AST output or --pyrethrum to specify path.",
-            file=sys.stderr,
+        returncode, output = run_pyrethrum(
+            json_data,
+            format_=args.format,
+            strict=args.strict,
+            pyrethrum_path=pyrethrum_path,
         )
-        print(json_data)
-        return 0
+        if output and output.strip():
+            all_outputs.append(output.strip())
+        max_returncode = max(max_returncode, returncode)
 
-    returncode, output = run_pyrethrum(
-        json_data,
-        format_=args.format,
-        strict=args.strict,
-        pyrethrum_path=pyrethrum_path,
-    )
-    if output:
-        print(output, end="")
-    return returncode
+    if not args.dump_ast and all_outputs:
+        print("\n".join(all_outputs))
+
+    return max_returncode
 
 
 def cmd_dump(args: argparse.Namespace) -> int:
@@ -143,11 +133,10 @@ def cmd_dump(args: argparse.Namespace) -> int:
         print("No Python files found.", file=sys.stderr)
         return 0
 
-    results = []
     for f in files:
         try:
-            result = analyze_file(f)
-            results.append(result)
+            ast_data = dump_raw_ast(f)
+            print(json.dumps(ast_data, indent=2))
         except SyntaxError as e:
             print(f"Syntax error in {f}: {e}", file=sys.stderr)
             continue
@@ -155,8 +144,6 @@ def cmd_dump(args: argparse.Namespace) -> int:
             print(f"Error analyzing {f}: {e}", file=sys.stderr)
             continue
 
-    merged = merge_results(results)
-    print(merged.to_json())
     return 0
 
 
