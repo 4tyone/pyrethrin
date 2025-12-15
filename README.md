@@ -13,6 +13,7 @@ Pyrethrin brings compile-time error handling guarantees to Python. Declare what 
 - [Quick Start](#quick-start)
 - [API Reference](#api-reference)
 - [Option Type](#option-type)
+- [Combining Decorators](#combining-decorators)
 - [Async Support](#async-support)
 - [Pattern Matching](#pattern-matching-python-310)
 - [Error Codes](#error-codes)
@@ -242,6 +243,119 @@ result = match(find_user, "123")({
 
 ---
 
+## Combining Decorators
+
+Sometimes you need both: a function that may return nothing (`Option`) AND may fail with an exception (`Result`). You can combine `@raises` and `@returns_option` for this.
+
+### Correct Order: `@raises` on top
+
+```python
+from pyrethrin import raises, Ok, Err
+from pyrethrin.decorators import returns_option
+from pyrethrin.option import Some, Nothing, Option
+
+class DatabaseError(Exception):
+    pass
+
+class ValidationError(Exception):
+    pass
+
+@raises(DatabaseError, ValidationError)
+@returns_option
+def find_product(product_id: str) -> Option[dict]:
+    """
+    Find a product by ID.
+
+    Returns:
+    - Ok(Some(product)) - found
+    - Ok(Nothing()) - not found
+    - Err(DatabaseError) - connection failed
+    - Err(ValidationError) - invalid ID
+    """
+    if not product_id.startswith("prod-"):
+        raise ValidationError(f"Invalid ID: {product_id}")
+    if product_id == "prod-error":
+        raise DatabaseError("Connection failed")
+
+    product = PRODUCTS.get(product_id)
+    if product is None:
+        return Nothing()
+    return Some(product)
+```
+
+The result type is `Result[Option[T], E]` - a nested type requiring two levels of handling.
+
+### Handling Nested Result[Option[T], E]
+
+**Nested pattern matching (explicit):**
+
+```python
+def get_product_price(product_id: str) -> str:
+    result = find_product(product_id)
+
+    match result:
+        case Ok(option_value):
+            match option_value:
+                case Some(product):
+                    return f"${product['price']:.2f}"
+                case Nothing():
+                    return "Product not found"
+        case Err(DatabaseError() as e):
+            return f"Database error: {e}"
+        case Err(ValidationError() as e):
+            return f"Invalid input: {e}"
+```
+
+**Flat pattern matching (concise):**
+
+```python
+def get_product_price(product_id: str) -> str:
+    match find_product(product_id):
+        case Ok(Some(product)):
+            return f"${product['price']:.2f}"
+        case Ok(Nothing()):
+            return "Product not found"
+        case Err(DatabaseError() as e):
+            return f"Database error: {e}"
+        case Err(ValidationError() as e):
+            return f"Invalid input: {e}"
+```
+
+### Wrong Order: `@returns_option` on top
+
+```python
+# DON'T DO THIS - will raise TypeError at runtime
+@returns_option
+@raises(ValueError)
+def wrong_order(x: int) -> int:
+    if x < 0:
+        raise ValueError("negative")
+    return x
+
+wrong_order(5)  # TypeError: returned Ok instead of Some or Nothing
+```
+
+The `@raises` decorator returns `Ok`/`Err`, but `@returns_option` expects `Some`/`Nothing`.
+
+### When to Use Combined Decorators
+
+Use `@raises` + `@returns_option` when your function has **two distinct failure modes**:
+
+| Scenario | Use |
+|----------|-----|
+| Value exists or doesn't | `@returns_option` alone |
+| Operation can fail | `@raises` alone |
+| Value may not exist AND operation can fail | `@raises` + `@returns_option` |
+
+**Example scenarios:**
+- Database lookup that may not find a record AND may have connection errors
+- API call that may return no data AND may timeout
+- File parsing that may have no matches AND may fail to read
+
+See `examples/combined_decorators_correct.py` and `examples/combined_decorators_missing_handlers.py` for complete examples.
+
+---
+
 ## Async Support
 
 Use `@async_raises` and `async_match` for async functions:
@@ -397,4 +511,4 @@ When a decorated function is called:
 
 ## License
 
-MIT
+Apache-2.0

@@ -59,19 +59,26 @@ pyrethrin/
 │   ├── __main__.py       # CLI entry point
 │   ├── _ast_dump.py      # AST extraction for static analysis
 │   ├── async_support.py  # @async_raises and async_match
-│   ├── decorators.py     # @raises decorator
+│   ├── decorators.py     # @raises and @returns_option decorators
 │   ├── exceptions.py     # Custom exceptions
 │   ├── match.py          # match() function
+│   ├── option.py         # Some/Nothing types
 │   ├── result.py         # Ok/Err types
 │   ├── testing.py        # Test utilities
 │   └── bin/              # Bundled pyrethrum binaries
-└── tests/
-    ├── test_decorators.py
-    ├── test_match.py
-    ├── test_result.py
-    ├── test_async.py
-    ├── test_ast_dump.py
-    └── test_edge_cases.py
+├── tests/
+│   ├── test_decorators.py
+│   ├── test_combined_decorators.py  # @raises + @returns_option tests
+│   ├── test_match.py
+│   ├── test_result.py
+│   ├── test_async.py
+│   ├── test_ast_dump.py
+│   └── test_edge_cases.py
+└── examples/
+    ├── combined_decorators_correct.py         # Proper combined usage
+    ├── combined_decorators_missing_handlers.py # Common mistakes
+    ├── option_example.py
+    └── user_service.py
 ```
 
 ## Making Changes

@@ -7,7 +7,7 @@ name = "pyrethrin"
 version = "0.1.0"
 description = "Exhaustive exception handling for Python"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.11"
 authors = [
     { name = "Mel Shakobyan" }
@@ -16,7 +16,7 @@ keywords = ["exceptions", "error-handling", "result", "exhaustive", "pattern-mat
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
