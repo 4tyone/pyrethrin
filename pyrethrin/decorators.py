@@ -92,16 +92,21 @@ def _check_caller_exhaustiveness(
     if pyrethrum is None:
         return
 
-    # Get caller's frame (skip wrapper and this function)
+    # Get caller's frame (skip internal pyrethrin frames to find user code)
     frame = inspect.currentframe()
     try:
         if frame is None:
             return
 
-        # Go up: _check_caller_exhaustiveness -> wrapper -> actual caller
-        caller_frame = frame.f_back  # wrapper
-        if caller_frame:
-            caller_frame = caller_frame.f_back  # actual caller
+        # Walk up the stack until we find a frame outside the pyrethrin package
+        pyrethrin_dir = str(Path(__file__).parent)
+        caller_frame = frame.f_back
+        while caller_frame is not None:
+            frame_file = caller_frame.f_code.co_filename
+            # Stop when we find a frame outside pyrethrin
+            if not frame_file.startswith(pyrethrin_dir):
+                break
+            caller_frame = caller_frame.f_back
 
         if caller_frame is None:
             return
@@ -119,11 +124,36 @@ def _check_caller_exhaustiveness(
         if not filename or filename.startswith("<") or not os.path.isfile(filename):
             return
 
-        # Read and analyze the source file
+        # Build external signature for this function
+        external_sig = {
+            "name": func_name,
+            "qualified_name": None,
+            "declared_exceptions": [],
+            "loc": {"file": "", "line": 0, "col": 0, "end_line": 0, "end_col": 0},
+            "is_async": False,
+            "signature_type": signature_type,
+        }
+        if exc_types:
+            for exc in exc_types:
+                module = exc.__module__
+                name = exc.__name__
+                if module and module != "builtins":
+                    external_sig["declared_exceptions"].append({
+                        "kind": "qualified",
+                        "module": module,
+                        "name": name,
+                    })
+                else:
+                    external_sig["declared_exceptions"].append({
+                        "kind": "name",
+                        "name": name,
+                    })
+
+        # Read and analyze the source file with external signature
         from pyrethrin._ast_dump import dump_raw_ast_json
 
         try:
-            json_data = dump_raw_ast_json(filename)
+            json_data = dump_raw_ast_json(filename, external_signatures=[external_sig])
         except Exception:
             return
 
@@ -160,12 +190,18 @@ def _check_caller_exhaustiveness(
                 continue
 
             diag_line = diag.get("line", 0)
+            call_line = diag.get("callLine")
 
-            # Only report errors that are near the call site (within the same function)
-            # The call is at lineno, the match should be after it
-            # Also allow errors at the call site itself (for unhandled calls)
-            if not (lineno - 5 <= diag_line <= lineno + 50):
-                continue
+            # Check if this error is for our specific call
+            # If callLine is present, use exact matching (the analyzer tracked which call this error is for)
+            # Otherwise fall back to range-based heuristic for backward compatibility
+            if call_line is not None:
+                if call_line != lineno:
+                    continue
+            else:
+                # Fallback: Only report errors that are near the call site
+                if not (lineno - 2 <= diag_line <= lineno + 10):
+                    continue
 
             message = diag.get("message", "")
             file = diag.get("file", filename)

@@ -45,7 +45,7 @@ pip install pyrethrin
 From source:
 
 ```bash
-git clone https://github.com/yourusername/pyrethrin
+git clone https://github.com/4tyone/pyrethrin
 cd pyrethrin
 pip install -e .
 ```

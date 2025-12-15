@@ -27,16 +27,26 @@ def _ast_to_json(node: ast.AST | None) -> Any:
         return str(node)
 
 
-def dump_raw_ast(file_path: str | Path) -> dict[str, Any]:
+def dump_raw_ast(
+    file_path: str | Path,
+    external_signatures: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     file_path = Path(file_path)
     source = file_path.read_text()
     tree = ast.parse(source)
-    return {
+    result = {
         "language": "python",
         "source_file": str(file_path),
         "ast": _ast_to_json(tree),
     }
+    if external_signatures:
+        result["external_signatures"] = external_signatures
+    return result
 
 
-def dump_raw_ast_json(file_path: str | Path, indent: int | None = 2) -> str:
-    return json.dumps(dump_raw_ast(file_path), indent=indent)
+def dump_raw_ast_json(
+    file_path: str | Path,
+    indent: int | None = 2,
+    external_signatures: list[dict[str, Any]] | None = None,
+) -> str:
+    return json.dumps(dump_raw_ast(file_path, external_signatures), indent=indent)
