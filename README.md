@@ -530,7 +530,7 @@ def test_exhaustive_handling():
 Pyrethrin consists of two components:
 
 1. **Python Library** - Runtime decorators, Result/Option types, AST extraction
-2. **Pyrethrum Analyzer** - OCaml static analyzer (bundled as platform-specific binary)
+2. **[Pyrethrum](https://github.com/4tyone/pyrethrum)** - OCaml static analyzer for exhaustiveness checking (bundled as platform-specific binary)
 
 When a decorated function is called:
 
