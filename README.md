@@ -5,7 +5,7 @@
 <h1 align="center">Pyrethrin</h1>
 
 <p align="center">
-  <strong>Rust-style exhaustive exception handling for Python</strong>
+  <strong>Rust-style exhaustive error and None handling for Python</strong>
 </p>
 
 <p align="center">
@@ -30,7 +30,11 @@
 
 ---
 
-Pyrethrin brings compile-time error handling guarantees to Python. Declare what exceptions a function can raise, and the static analyzer ensures every caller handles all of them. No more runtime crashes from forgotten exception handlers.
+Pyrethrin brings compile-time safety guarantees to Python for two of the most common sources of runtime errors:
+
+**Exceptions** - Declare what exceptions a function can raise with `@raises`, and the static analyzer ensures every caller handles all of them. No more `except Exception` or forgotten error paths.
+
+**None values** - Mark functions that may return nothing with `@returns_option`, forcing callers to explicitly handle the `Some` and `Nothing` cases. No more `AttributeError: 'NoneType' has no attribute` crashes.
 
 ---
 
