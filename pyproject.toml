@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyrethrin"
-version = "0.1.4"
+version = "0.1.5"
 description = "Rust-style exhaustive error and None handling for Python"
 readme = "README.md"
 license = "Apache-2.0"
