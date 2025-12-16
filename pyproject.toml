@@ -4,13 +4,13 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pyrethrin"
-version = "0.1.0"
+version = "0.1.2"
 description = "Exhaustive exception handling for Python"
 readme = "README.md"
 license = "Apache-2.0"
 requires-python = ">=3.11"
 authors = [
-    { name = "Mel Shakobyan" }
+    { name = "Mel Shakobyan", email = "mels@4tyone.com" }
 ]
 keywords = ["exceptions", "error-handling", "result", "exhaustive", "pattern-matching"]
 classifiers = [
@@ -23,6 +23,11 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Typing :: Typed",
 ]
+
+[project.urls]
+Homepage = "https://github.com/4tyone/pyrethrin"
+Repository = "https://github.com/4tyone/pyrethrin"
+Documentation = "https://github.com/4tyone/pyrethrin#readme"
 
 [project.optional-dependencies]
 static = []

@@ -1,6 +1,34 @@
-# Pyrethrin
+<p align="center">
+  <img src="https://raw.githubusercontent.com/4tyone/pyrethrin/main/PyrethrumLogo.png" alt="Pyrethrin Logo" width="120">
+</p>
 
-**Rust-style exhaustive exception handling for Python.**
+<h1 align="center">Pyrethrin</h1>
+
+<p align="center">
+  <strong>Rust-style exhaustive exception handling for Python</strong>
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/pyrethrin/">
+    <img src="https://img.shields.io/pypi/v/pyrethrin?color=blue&label=PyPI" alt="PyPI Version">
+  </a>
+  <a href="https://pypi.org/project/pyrethrin/">
+    <img src="https://img.shields.io/pypi/pyversions/pyrethrin" alt="Python Version">
+  </a>
+  <a href="https://github.com/4tyone/pyrethrin/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/license-Apache--2.0-green" alt="License">
+  </a>
+</p>
+
+<p align="center">
+  <a href="#installation">Installation</a> •
+  <a href="#quick-start">Quick Start</a> •
+  <a href="#api-reference">API Reference</a> •
+  <a href="#documentation">Documentation</a> •
+  <a href="#license">License</a>
+</p>
+
+---
 
 Pyrethrin brings compile-time error handling guarantees to Python. Declare what exceptions a function can raise, and the static analyzer ensures every caller handles all of them. No more runtime crashes from forgotten exception handlers.
 
@@ -19,6 +47,7 @@ Pyrethrin brings compile-time error handling guarantees to Python. Declare what 
 - [Error Codes](#error-codes)
 - [Testing](#testing)
 - [Configuration](#configuration)
+- [Documentation](#documentation)
 - [License](#license)
 
 ---
@@ -50,6 +79,10 @@ git clone https://github.com/4tyone/pyrethrin
 cd pyrethrin
 pip install -e .
 ```
+
+**Requirements:**
+- Python 3.11+
+- No additional dependencies required (Pyrethrum binary is bundled)
 
 ---
 
@@ -488,7 +521,7 @@ def test_exhaustive_handling():
 
 | Variable | Description |
 |----------|-------------|
-| `PYRETHRIN_DISABLE_STATIC_CHECK` | Set to `1` to disable static analysis |
+| `PYRETHRIN_DISABLE_STATIC_CHECK` | Set to `1` to disable static analysis (useful for production) |
 
 ---
 
@@ -506,6 +539,27 @@ When a decorated function is called:
 3. JSON is passed to the Pyrethrum binary
 4. Pyrethrum checks exhaustiveness and returns diagnostics
 5. `ExhaustivenessError` is raised if violations are found
+
+Results are cached per call site to avoid redundant analysis.
+
+---
+
+## Contributing
+
+Contributions are welcome! Please see our [Contributing Guide](CONTRIBUTING.md).
+
+```bash
+# Setup development environment
+git clone https://github.com/4tyone/pyrethrin
+cd pyrethrin
+pip install -e ".[dev]"
+
+# Run tests
+pytest
+
+# Run linting
+ruff check .
+```
 
 ---
 
