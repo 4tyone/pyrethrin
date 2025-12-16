@@ -5,7 +5,7 @@
 <h1 align="center">Pyrethrin</h1>
 
 <p align="center">
-  <strong>Rust-style exhaustive error and None handling for Python</strong>
+  <strong>Rust and OCaml-style exhaustive error and None handling for Python</strong>
 </p>
 
 <p align="center">
@@ -31,6 +31,10 @@
 ---
 
 Pyrethrin brings compile-time safety guarantees to Python for two of the most common sources of runtime errors:
+
+Python's flexibility is its greatest strength and its Achilles' heel. There are weird edge-case exceptions everywhere in your code-base, functions recieve `None` in the most unexpected places, and you only discover these issues when your app crashes in production at 3 AM.
+
+Languages like Rust and OCaml solved this with `Result` and `Option` types that make error handling explicit and exhaustive. Pyrethrin brings that same peace of mind to Python: **if it compiles, it handles all the errors**. Stop playing whack-a-mole with try/except blocks and `if x is not None` checks scattered throughout your codebase.
 
 **Exceptions** - Declare what exceptions a function can raise with `@raises`, and the static analyzer ensures every caller handles all of them. No more `except Exception` or forgotten error paths.
 
