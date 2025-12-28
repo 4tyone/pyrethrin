@@ -39,3 +39,6 @@ htmlcov/
 
 examples/
 DOCUMENTATION.md
+.gitignore
+.arbor
+specs_shield_feat

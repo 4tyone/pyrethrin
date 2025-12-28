@@ -32,7 +32,7 @@
 
 Pyrethrin brings compile-time safety guarantees to Python for two of the most common sources of runtime errors:
 
-Python's flexibility is its greatest strength and its Achilles' heel. There are weird edge-case exceptions everywhere in your code-base, functions recieve `None` in the most unexpected places, and you only discover these issues when your app crashes in production at 3 AM.
+Python's flexibility is its greatest strength and its Achilles' heel. There are weird edge-case exceptions everywhere in your code-base, functions receive `None` in the most unexpected places, and you only discover these issues when your app crashes in production at 3 AM.
 
 Languages like Rust and OCaml solved this with `Result` and `Option` types that make error handling explicit and exhaustive. Pyrethrin brings that same peace of mind to Python: **if it compiles, it handles all the errors**. Stop playing whack-a-mole with try/except blocks and `if x is not None` checks scattered throughout your codebase.
 
@@ -47,6 +47,7 @@ Languages like Rust and OCaml solved this with `Result` and `Option` types that 
 - [Features](#features)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
+- [Shields](#shields)
 - [API Reference](#api-reference)
 - [Option Type](#option-type)
 - [Combining Decorators](#combining-decorators)
@@ -157,6 +158,47 @@ match(get_user, user_id)({
     # Missing: InvalidUserId - caught by static analysis
 })
 ```
+
+---
+
+## Shields
+
+**New in 0.2.0:** Pyrethrin now ships with pre-built "shields" for popular libraries. Shields are drop-in replacements that add explicit exception declarations to library functions, so you get the same exhaustive error handling guarantees for third-party code.
+
+### Available Shields
+
+| Shield | Coverage | Description |
+|--------|----------|-------------|
+| `pyrethrin.shields.pandas` | File I/O, parsing, data manipulation | `read_csv`, `read_excel`, `read_json`, `concat`, `merge`, `pivot`, etc. |
+| `pyrethrin.shields.numpy` | 95%+ of numpy API | Array creation, math, linalg, FFT, random, I/O |
+| `pyrethrin.shields.fastapi` | Core FastAPI | `FastAPI`, `APIRouter`, `Request`, `Response`, dependencies |
+
+### Usage
+
+Replace your imports with the shielded version:
+
+```python
+# Before - exceptions are implicit
+import pandas as pd
+df = pd.read_csv("data.csv")  # Can raise OSError, ParserError, ValueError...
+
+# After - exceptions are explicit and must be handled
+from pyrethrin.shields import pandas as pd
+from pyrethrin import match, Ok
+
+result = match(pd.read_csv, "data.csv")({
+    Ok: lambda df: process(df),
+    OSError: lambda e: log_error("File not found", e),
+    pd.ParserError: lambda e: log_error("Invalid CSV", e),
+    ValueError: lambda e: log_error("Bad data", e),
+})
+```
+
+Shields export everything from the original library, so you can use them as drop-in replacements. Only the functions that can fail are wrapped with `@raises`.
+
+### Exception Discovery with Arbor
+
+Shield exception declarations are generated using [Arbor](https://github.com/4tyone/arbor), a static analysis tool that traverses Python call graphs to discover all possible exceptions. This ensures shields declare the actual exceptions that can occur, not just guesses.
 
 ---
 
